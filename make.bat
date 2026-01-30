@@ -1,15 +1,14 @@
 @echo off
-REM Makefile for Network Discovery Tool (Windows)
+REM Makefile for Network Discovery Tool (Windows) - Using UV
 REM Usage: make.bat <target>
 
 setlocal enabledelayedexpansion
 
 REM Variables
-set PYTHON=python
-set VENV=venv
+set UV=uv
+set VENV=.venv
 set VENV_PYTHON=%VENV%\Scripts\python.exe
-set VENV_PIP=%VENV%\Scripts\pip.exe
-set NETWORK_DISCOVERY=%VENV%\Scripts\network-discovery.exe
+set UV_RUN=%UV% run
 
 REM Colors (for Windows 10+)
 set RED=[91m
@@ -23,11 +22,13 @@ set COMMAND=%1
 
 if "%COMMAND%"=="" goto help
 if "%COMMAND%"=="help" goto help
+if "%COMMAND%"=="install-uv" goto install-uv
 if "%COMMAND%"=="install" goto install
 if "%COMMAND%"=="setup" goto install
 if "%COMMAND%"=="venv" goto venv
 if "%COMMAND%"=="deps" goto deps
 if "%COMMAND%"=="package" goto package
+if "%COMMAND%"=="sync" goto sync
 if "%COMMAND%"=="config" goto config
 if "%COMMAND%"=="discover" goto discover
 if "%COMMAND%"=="discover-verbose" goto discover-verbose
@@ -55,21 +56,24 @@ if "%COMMAND%"=="format" goto format
 if "%COMMAND%"=="clean" goto clean
 if "%COMMAND%"=="clean-all" goto clean-all
 if "%COMMAND%"=="quickstart" goto quickstart
+if "%COMMAND%"=="uv-info" goto uv-info
 
 echo %RED%Unknown command: %COMMAND%%NC%
 goto help
 
 :help
-echo %BLUE%Network Discovery Tool - Windows Commands%NC%
+echo %BLUE%Network Discovery Tool - Windows Commands (UV-powered)%NC%
 echo.
 echo Usage: make.bat ^<target^>
 echo.
 echo %YELLOW%Setup:%NC%
+echo   install-uv         Install uv package manager
 echo   install            Full installation (create venv, install deps, setup config)
 echo   setup              Alias for install
-echo   venv               Create virtual environment
-echo   deps               Install dependencies
+echo   venv               Create virtual environment with uv
+echo   deps               Install dependencies with uv
 echo   package            Install package in development mode
+echo   sync               Sync dependencies (faster than reinstall)
 echo   config             Create configuration files from templates
 echo.
 echo %YELLOW%Discovery:%NC%
@@ -111,12 +115,29 @@ echo   format             Format code with black
 echo   clean              Clean temporary files
 echo   clean-all          Clean everything including database
 echo.
+echo %YELLOW%Utilities:%NC%
+echo   uv-info            Show UV version and package info
+echo.
 echo %YELLOW%Quick Start:%NC%
 echo   quickstart         Complete quickstart (install, discover, serve)
 goto :eof
 
+:install-uv
+echo %BLUE%Checking for UV...%NC%
+where uv >nul 2>&1
+if %errorlevel% neq 0 (
+    echo %YELLOW%UV not found. Installing...%NC%
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    echo %GREEN%UV installed%NC%
+) else (
+    echo %GREEN%UV is already installed%NC%
+)
+uv --version
+goto :eof
+
 :install
-echo %GREEN%Starting installation...%NC%
+echo %GREEN%Starting installation with UV...%NC%
+call :install-uv
 call :venv
 call :deps
 call :package
@@ -130,26 +151,27 @@ echo   3. Run discovery: make.bat discover
 goto :eof
 
 :venv
-echo %BLUE%Creating virtual environment...%NC%
-if not exist %VENV% (
-    %PYTHON% -m venv %VENV%
-    echo %GREEN%Virtual environment created%NC%
-) else (
-    echo %YELLOW%Virtual environment already exists%NC%
-)
+echo %BLUE%Creating virtual environment with UV...%NC%
+%UV% venv %VENV%
+echo %GREEN%Virtual environment created%NC%
 goto :eof
 
 :deps
-echo %BLUE%Installing dependencies...%NC%
-%VENV_PIP% install --upgrade pip setuptools wheel
-%VENV_PIP% install -r requirements.txt
+echo %BLUE%Installing dependencies with UV (ultra-fast!)...%NC%
+%UV% pip install -r requirements.txt
 echo %GREEN%Dependencies installed%NC%
 goto :eof
 
 :package
-echo %BLUE%Installing package...%NC%
-%VENV_PIP% install -e .
+echo %BLUE%Installing package with UV...%NC%
+%UV% pip install -e .
 echo %GREEN%Package installed%NC%
+goto :eof
+
+:sync
+echo %BLUE%Syncing dependencies with UV...%NC%
+%UV% pip sync requirements.txt
+echo %GREEN%Dependencies synced%NC%
 goto :eof
 
 :config
@@ -174,41 +196,41 @@ goto :eof
 
 :discover
 echo %BLUE%Starting network discovery...%NC%
-%NETWORK_DISCOVERY% discover run
+%UV_RUN% network-discovery discover run
 echo %GREEN%Discovery complete%NC%
 goto :eof
 
 :discover-verbose
 echo %BLUE%Starting verbose network discovery...%NC%
 set LOG_LEVEL=DEBUG
-%NETWORK_DISCOVERY% discover run
+%UV_RUN% network-discovery discover run
 echo %GREEN%Discovery complete%NC%
 goto :eof
 
 :discover-shallow
 echo %BLUE%Starting shallow discovery (max depth 3)...%NC%
-%NETWORK_DISCOVERY% discover run --max-depth 3
+%UV_RUN% network-discovery discover run --max-depth 3
 echo %GREEN%Discovery complete%NC%
 goto :eof
 
 :status
-%NETWORK_DISCOVERY% discover status
+%UV_RUN% network-discovery discover status
 goto :eof
 
 :list-devices
-%NETWORK_DISCOVERY% list-devices
+%UV_RUN% network-discovery list-devices
 goto :eof
 
 :list-switches
-%NETWORK_DISCOVERY% list-devices --type switch
+%UV_RUN% network-discovery list-devices --type switch
 goto :eof
 
 :list-connections
-%NETWORK_DISCOVERY% list-connections
+%UV_RUN% network-discovery list-connections
 goto :eof
 
 :stats
-%NETWORK_DISCOVERY% stats
+%UV_RUN% network-discovery stats
 goto :eof
 
 :search-mac
@@ -217,7 +239,7 @@ if "%MAC%"=="" (
     echo Usage: set MAC=aa:bb:cc:dd:ee:ff ^&^& make.bat search-mac
     goto :eof
 )
-%NETWORK_DISCOVERY% search mac %MAC%
+%UV_RUN% network-discovery search mac %MAC%
 goto :eof
 
 :search-device
@@ -226,18 +248,18 @@ if "%DEVICE%"=="" (
     echo Usage: set DEVICE=hostname ^&^& make.bat search-device
     goto :eof
 )
-%NETWORK_DISCOVERY% search device %DEVICE%
+%UV_RUN% network-discovery search device %DEVICE%
 goto :eof
 
 :export-json
 echo %BLUE%Exporting topology to topology.json...%NC%
-%NETWORK_DISCOVERY% export --format json --output topology.json
+%UV_RUN% network-discovery export --format json --output topology.json
 echo %GREEN%Exported to topology.json%NC%
 goto :eof
 
 :export-graphml
 echo %BLUE%Exporting topology to topology.graphml...%NC%
-%NETWORK_DISCOVERY% export --format graphml --output topology.graphml
+%UV_RUN% network-discovery export --format graphml --output topology.graphml
 echo %GREEN%Exported to topology.graphml%NC%
 goto :eof
 
@@ -252,23 +274,23 @@ echo %BLUE%Starting web dashboard...%NC%
 echo %GREEN%API: http://localhost:5000%NC%
 echo %GREEN%Dashboard: Open web\index.html in your browser%NC%
 echo %YELLOW%Press Ctrl+C to stop%NC%
-%NETWORK_DISCOVERY% serve
+%UV_RUN% network-discovery serve
 goto :eof
 
 :serve-debug
 echo %BLUE%Starting web dashboard in debug mode...%NC%
-%NETWORK_DISCOVERY% serve --debug
+%UV_RUN% network-discovery serve --debug
 goto :eof
 
 :serve-public
 echo %BLUE%Starting web dashboard on 0.0.0.0:5000...%NC%
 echo %YELLOW%Server will be accessible from your network%NC%
-%NETWORK_DISCOVERY% serve --host 0.0.0.0 --port 5000
+%UV_RUN% network-discovery serve --host 0.0.0.0 --port 5000
 goto :eof
 
 :db-init
 echo %BLUE%Initializing database...%NC%
-%VENV_PYTHON% -c "from src.database.schema import create_database; from src.utils.config import get_database_url; create_database(get_database_url())"
+%UV_RUN% python -c "from src.database.schema import create_database; from src.utils.config import get_database_url; create_database(get_database_url())"
 echo %GREEN%Database initialized%NC%
 goto :eof
 
@@ -290,22 +312,22 @@ goto :eof
 
 :shell
 echo %BLUE%Opening Python shell...%NC%
-%VENV_PYTHON% -i -c "from src.database.schema import *; from src.database.repository import *; from src.core.discovery.engine import *; from src.utils.config import *; print('Project modules loaded')"
+%UV_RUN% python -i -c "from src.database.schema import *; from src.database.repository import *; from src.core.discovery.engine import *; from src.utils.config import *; print('Project modules loaded')"
 goto :eof
 
 :test
 echo %BLUE%Running tests...%NC%
-%VENV%\Scripts\pytest tests\ -v
+%UV_RUN% pytest tests\ -v
 goto :eof
 
 :lint
 echo %BLUE%Running linter...%NC%
-%VENV%\Scripts\flake8 src\ --max-line-length=100 --ignore=E501,W503
+%UV_RUN% flake8 src\ --max-line-length=100 --ignore=E501,W503
 goto :eof
 
 :format
 echo %BLUE%Formatting code...%NC%
-%VENV%\Scripts\black src\ --line-length=100
+%UV_RUN% black src\ --line-length=100
 goto :eof
 
 :clean
@@ -329,7 +351,15 @@ del /q topology.graphml 2>nul
 del /q topology.gexf 2>nul
 del /q logs\*.log 2>nul
 del /q network_discovery.db 2>nul
+del /q uv.lock 2>nul
 echo %GREEN%Everything cleaned%NC%
+goto :eof
+
+:uv-info
+echo %BLUE%UV Information:%NC%
+%UV% --version
+echo.
+%UV% pip list
 goto :eof
 
 :quickstart

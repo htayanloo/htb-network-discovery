@@ -1,14 +1,13 @@
-# Makefile for Network Discovery Tool (Linux/macOS)
+# Makefile for Network Discovery Tool (Linux/macOS) - Using UV
 
 .PHONY: help install setup config clean test run discover serve export stats shell db-init lint format check-deps docs
 
 # Variables
-PYTHON := python3
-PIP := $(PYTHON) -m pip
-VENV := venv
+UV := uv
+VENV := .venv
 VENV_BIN := $(VENV)/bin
 VENV_PYTHON := $(VENV_BIN)/python
-VENV_PIP := $(VENV_BIN)/pip
+UV_RUN := $(UV) run
 
 # Colors for output
 RED := \033[0;31m
@@ -20,14 +19,24 @@ NC := \033[0m # No Color
 ##@ Help
 
 help: ## Display this help message
-	@echo "$(BLUE)Network Discovery Tool - Makefile Commands$(NC)"
+	@echo "$(BLUE)Network Discovery Tool - Makefile Commands (UV-powered)$(NC)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make $(CYAN)<target>$(NC)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  $(CYAN)%-15s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Setup
 
-install: ## Full installation (create venv, install deps, setup config)
-	@echo "$(GREEN)Starting installation...$(NC)"
+install-uv: ## Install uv (if not already installed)
+	@echo "$(BLUE)Checking for uv...$(NC)"
+	@command -v uv >/dev/null 2>&1 || { \
+		echo "$(YELLOW)UV not found. Installing...$(NC)"; \
+		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+		echo "$(GREEN)✓ UV installed$(NC)"; \
+	}
+	@echo "$(GREEN)✓ UV is available$(NC)"
+	@uv --version
+
+install: install-uv ## Full installation (create venv, install deps, setup config)
+	@echo "$(GREEN)Starting installation with UV...$(NC)"
 	@$(MAKE) venv
 	@$(MAKE) deps
 	@$(MAKE) package
@@ -38,21 +47,29 @@ install: ## Full installation (create venv, install deps, setup config)
 	@echo "  2. Set SSH password: export SSH_PASSWORD='your-password'"
 	@echo "  3. Run discovery: make discover"
 
-venv: ## Create virtual environment
-	@echo "$(BLUE)Creating virtual environment...$(NC)"
-	@test -d $(VENV) || $(PYTHON) -m venv $(VENV)
-	@echo "$(GREEN)✓ Virtual environment created$(NC)"
+venv: ## Create virtual environment using uv
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "$(BLUE)Creating virtual environment with UV...$(NC)"; \
+		$(UV) venv $(VENV); \
+		echo "$(GREEN)✓ Virtual environment created$(NC)"; \
+	else \
+		echo "$(GREEN)✓ Virtual environment already exists$(NC)"; \
+	fi
 
-deps: ## Install dependencies
-	@echo "$(BLUE)Installing dependencies...$(NC)"
-	@$(VENV_PIP) install --upgrade pip setuptools wheel
-	@$(VENV_PIP) install -r requirements.txt
+deps: ## Install dependencies using uv
+	@echo "$(BLUE)Installing dependencies with UV (ultra-fast!)...$(NC)"
+	@$(UV) pip install -r requirements.txt
 	@echo "$(GREEN)✓ Dependencies installed$(NC)"
 
-package: ## Install package in development mode
-	@echo "$(BLUE)Installing package...$(NC)"
-	@$(VENV_PIP) install -e .
+package: ## Install package in development mode using uv
+	@echo "$(BLUE)Installing package with UV...$(NC)"
+	@$(UV) pip install -e .
 	@echo "$(GREEN)✓ Package installed$(NC)"
+
+sync: ## Sync dependencies using uv (faster than reinstall)
+	@echo "$(BLUE)Syncing dependencies with UV...$(NC)"
+	@$(UV) pip sync requirements.txt
+	@echo "$(GREEN)✓ Dependencies synced$(NC)"
 
 config: ## Create configuration files from templates
 	@echo "$(BLUE)Setting up configuration...$(NC)"
@@ -79,35 +96,35 @@ setup: install ## Alias for install
 
 discover: ## Run network discovery
 	@echo "$(BLUE)Starting network discovery...$(NC)"
-	@$(VENV_BIN)/network-discovery discover run
+	@$(UV_RUN) network-discovery discover run
 	@echo "$(GREEN)✓ Discovery complete$(NC)"
 
 discover-verbose: ## Run discovery with verbose logging
 	@echo "$(BLUE)Starting verbose network discovery...$(NC)"
-	@LOG_LEVEL=DEBUG $(VENV_BIN)/network-discovery discover run
+	@LOG_LEVEL=DEBUG $(UV_RUN) network-discovery discover run
 	@echo "$(GREEN)✓ Discovery complete$(NC)"
 
 discover-shallow: ## Run discovery with max depth 3
 	@echo "$(BLUE)Starting shallow discovery (max depth 3)...$(NC)"
-	@$(VENV_BIN)/network-discovery discover run --max-depth 3
+	@$(UV_RUN) network-discovery discover run --max-depth 3
 	@echo "$(GREEN)✓ Discovery complete$(NC)"
 
 status: ## Show last discovery status
-	@$(VENV_BIN)/network-discovery discover status
+	@$(UV_RUN) network-discovery discover status
 
 ##@ Data Management
 
 list-devices: ## List all discovered devices
-	@$(VENV_BIN)/network-discovery list-devices
+	@$(UV_RUN) network-discovery list-devices
 
 list-switches: ## List all switches
-	@$(VENV_BIN)/network-discovery list-devices --type switch
+	@$(UV_RUN) network-discovery list-devices --type switch
 
 list-connections: ## List all connections
-	@$(VENV_BIN)/network-discovery list-connections
+	@$(UV_RUN) network-discovery list-connections
 
 stats: ## Show topology statistics
-	@$(VENV_BIN)/network-discovery stats
+	@$(UV_RUN) network-discovery stats
 
 ##@ Search
 
@@ -117,7 +134,7 @@ search-mac: ## Search for MAC address (usage: make search-mac MAC=aa:bb:cc:dd:ee
 		echo "Usage: make search-mac MAC=aa:bb:cc:dd:ee:ff"; \
 		exit 1; \
 	fi
-	@$(VENV_BIN)/network-discovery search mac $(MAC)
+	@$(UV_RUN) network-discovery search mac $(MAC)
 
 search-device: ## Search for device (usage: make search-device DEVICE=hostname)
 	@if [ -z "$(DEVICE)" ]; then \
@@ -125,18 +142,18 @@ search-device: ## Search for device (usage: make search-device DEVICE=hostname)
 		echo "Usage: make search-device DEVICE=hostname"; \
 		exit 1; \
 	fi
-	@$(VENV_BIN)/network-discovery search device $(DEVICE)
+	@$(UV_RUN) network-discovery search device $(DEVICE)
 
 ##@ Export
 
 export-json: ## Export topology as JSON
 	@echo "$(BLUE)Exporting topology to topology.json...$(NC)"
-	@$(VENV_BIN)/network-discovery export --format json --output topology.json
+	@$(UV_RUN) network-discovery export --format json --output topology.json
 	@echo "$(GREEN)✓ Exported to topology.json$(NC)"
 
 export-graphml: ## Export topology as GraphML
 	@echo "$(BLUE)Exporting topology to topology.graphml...$(NC)"
-	@$(VENV_BIN)/network-discovery export --format graphml --output topology.graphml
+	@$(UV_RUN) network-discovery export --format graphml --output topology.graphml
 	@echo "$(GREEN)✓ Exported to topology.graphml$(NC)"
 
 export-all: export-json export-graphml ## Export topology in all formats
@@ -149,22 +166,22 @@ serve: ## Start web dashboard server
 	@echo "$(GREEN)API: http://localhost:5000$(NC)"
 	@echo "$(GREEN)Dashboard: Open web/index.html in your browser$(NC)"
 	@echo "$(YELLOW)Press Ctrl+C to stop$(NC)"
-	@$(VENV_BIN)/network-discovery serve
+	@$(UV_RUN) network-discovery serve
 
 serve-debug: ## Start web server in debug mode
 	@echo "$(BLUE)Starting web dashboard in debug mode...$(NC)"
-	@$(VENV_BIN)/network-discovery serve --debug
+	@$(UV_RUN) network-discovery serve --debug
 
 serve-public: ## Start web server accessible from network
 	@echo "$(BLUE)Starting web dashboard on 0.0.0.0:5000...$(NC)"
 	@echo "$(YELLOW)Server will be accessible from your network$(NC)"
-	@$(VENV_BIN)/network-discovery serve --host 0.0.0.0 --port 5000
+	@$(UV_RUN) network-discovery serve --host 0.0.0.0 --port 5000
 
 ##@ Database
 
 db-init: ## Initialize database
 	@echo "$(BLUE)Initializing database...$(NC)"
-	@$(VENV_PYTHON) -c "from src.database.schema import create_database; from src.utils.config import get_database_url; create_database(get_database_url())"
+	@$(UV_RUN) python -c "from src.database.schema import create_database; from src.utils.config import get_database_url; create_database(get_database_url())"
 	@echo "$(GREEN)✓ Database initialized$(NC)"
 
 db-shell: ## Open database shell
@@ -186,31 +203,31 @@ db-clean: ## Remove database (WARNING: deletes all data)
 
 shell: ## Open Python shell with project context
 	@echo "$(BLUE)Opening Python shell...$(NC)"
-	@$(VENV_PYTHON) -i -c "from src.database.schema import *; from src.database.repository import *; from src.core.discovery.engine import *; from src.utils.config import *; print('Project modules loaded')"
+	@$(UV_RUN) python -i -c "from src.database.schema import *; from src.database.repository import *; from src.core.discovery.engine import *; from src.utils.config import *; print('Project modules loaded')"
 
 test: ## Run tests
 	@echo "$(BLUE)Running tests...$(NC)"
-	@$(VENV_BIN)/pytest tests/ -v
+	@$(UV_RUN) pytest tests/ -v
 
 test-cov: ## Run tests with coverage
 	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	@$(VENV_BIN)/pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+	@$(UV_RUN) pytest tests/ -v --cov=src --cov-report=html --cov-report=term
 
 lint: ## Run linter (flake8)
 	@echo "$(BLUE)Running linter...$(NC)"
-	@$(VENV_BIN)/flake8 src/ --max-line-length=100 --ignore=E501,W503
+	@$(UV_RUN) flake8 src/ --max-line-length=100 --ignore=E501,W503
 
 format: ## Format code with black
 	@echo "$(BLUE)Formatting code...$(NC)"
-	@$(VENV_BIN)/black src/ --line-length=100
+	@$(UV_RUN) black src/ --line-length=100
 
 format-check: ## Check code formatting
 	@echo "$(BLUE)Checking code formatting...$(NC)"
-	@$(VENV_BIN)/black src/ --check --line-length=100
+	@$(UV_RUN) black src/ --check --line-length=100
 
 type-check: ## Run type checking with mypy
 	@echo "$(BLUE)Running type checker...$(NC)"
-	@$(VENV_BIN)/mypy src/ --ignore-missing-imports
+	@$(UV_RUN) mypy src/ --ignore-missing-imports
 
 check: lint format-check type-check ## Run all checks
 
@@ -218,15 +235,20 @@ check: lint format-check type-check ## Run all checks
 
 check-deps: ## Check for missing dependencies
 	@echo "$(BLUE)Checking dependencies...$(NC)"
-	@$(VENV_PIP) check
+	@$(UV) pip check
 
 update-deps: ## Update all dependencies
-	@echo "$(BLUE)Updating dependencies...$(NC)"
-	@$(VENV_PIP) install --upgrade -r requirements.txt
+	@echo "$(BLUE)Updating dependencies with UV...$(NC)"
+	@$(UV) pip install --upgrade -r requirements.txt
 	@echo "$(GREEN)✓ Dependencies updated$(NC)"
 
 freeze: ## Freeze current dependencies
-	@$(VENV_PIP) freeze > requirements.lock
+	@$(UV) pip freeze > requirements.lock
+
+compile: ## Compile dependencies (create requirements.txt from pyproject.toml)
+	@echo "$(BLUE)Compiling dependencies with UV...$(NC)"
+	@$(UV) pip compile pyproject.toml -o requirements.txt
+	@echo "$(GREEN)✓ Dependencies compiled$(NC)"
 
 docs: ## Open documentation
 	@echo "$(BLUE)Opening documentation...$(NC)"
@@ -240,6 +262,12 @@ docs: ## Open documentation
 
 logs: ## Show discovery logs
 	@tail -f logs/discovery.log
+
+uv-info: ## Show UV information
+	@echo "$(BLUE)UV Information:$(NC)"
+	@$(UV) --version
+	@echo ""
+	@$(UV) pip list
 
 ##@ Cleanup
 
@@ -257,22 +285,22 @@ clean-all: clean db-clean ## Clean everything including database
 	@rm -rf $(VENV)
 	@rm -f topology.json topology.graphml topology.gexf
 	@rm -rf logs/*.log
+	@rm -f uv.lock
 	@echo "$(GREEN)✓ Everything cleaned$(NC)"
 
 ##@ Production
 
-prod-install: ## Install for production
-	@echo "$(BLUE)Installing for production...$(NC)"
+prod-install: install-uv ## Install for production
+	@echo "$(BLUE)Installing for production with UV...$(NC)"
 	@$(MAKE) venv
-	@$(VENV_PIP) install --upgrade pip
-	@$(VENV_PIP) install -r requirements.txt
-	@$(VENV_PIP) install gunicorn
-	@$(VENV_PIP) install -e .
+	@$(UV) pip install -r requirements.txt
+	@$(UV) pip install gunicorn
+	@$(UV) pip install -e .
 	@echo "$(GREEN)✓ Production installation complete$(NC)"
 
 prod-serve: ## Start production server with Gunicorn
 	@echo "$(BLUE)Starting production server...$(NC)"
-	@$(VENV_BIN)/gunicorn -w 4 -b 0.0.0.0:5000 'api.app:create_app()'
+	@$(UV_RUN) gunicorn -w 4 -b 0.0.0.0:5000 'api.app:create_app()'
 
 ##@ Quick Start
 

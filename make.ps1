@@ -1,4 +1,4 @@
-# PowerShell Makefile for Network Discovery Tool (Windows)
+# PowerShell Makefile for Network Discovery Tool (Windows) - Using UV
 # Usage: .\make.ps1 <target>
 
 param(
@@ -10,11 +10,10 @@ param(
 )
 
 # Variables
-$PYTHON = "python"
-$VENV = "venv"
+$UV = "uv"
+$VENV = ".venv"
 $VENV_PYTHON = "$VENV\Scripts\python.exe"
-$VENV_PIP = "$VENV\Scripts\pip.exe"
-$NETWORK_DISCOVERY = "$VENV\Scripts\network-discovery.exe"
+$UV_RUN = "uv run"
 
 # Colors
 function Write-ColorOutput {
@@ -26,16 +25,18 @@ function Write-ColorOutput {
 }
 
 function Show-Help {
-    Write-ColorOutput "Network Discovery Tool - PowerShell Commands" "Blue"
+    Write-ColorOutput "Network Discovery Tool - PowerShell Commands (UV-powered)" "Blue"
     Write-Host ""
     Write-Host "Usage: .\make.ps1 <target>"
     Write-Host ""
     Write-ColorOutput "Setup:" "Yellow"
+    Write-Host "  install-uv         Install uv package manager"
     Write-Host "  install            Full installation (create venv, install deps, setup config)"
     Write-Host "  setup              Alias for install"
-    Write-Host "  venv               Create virtual environment"
-    Write-Host "  deps               Install dependencies"
+    Write-Host "  venv               Create virtual environment with uv"
+    Write-Host "  deps               Install dependencies with uv"
     Write-Host "  package            Install package in development mode"
+    Write-Host "  sync               Sync dependencies (faster than reinstall)"
     Write-Host "  config             Create configuration files from templates"
     Write-Host ""
     Write-ColorOutput "Discovery:" "Yellow"
@@ -79,12 +80,30 @@ function Show-Help {
     Write-Host "  clean              Clean temporary files"
     Write-Host "  clean-all          Clean everything including database"
     Write-Host ""
+    Write-ColorOutput "Utilities:" "Yellow"
+    Write-Host "  uv-info            Show UV version and package info"
+    Write-Host ""
     Write-ColorOutput "Quick Start:" "Yellow"
     Write-Host "  quickstart         Complete quickstart (install, discover, serve)"
 }
 
+function Install-UV {
+    Write-ColorOutput "Checking for UV..." "Blue"
+
+    if (Get-Command uv -ErrorAction SilentlyContinue) {
+        Write-ColorOutput "✓ UV is already installed" "Green"
+    } else {
+        Write-ColorOutput "UV not found. Installing..." "Yellow"
+        irm https://astral.sh/uv/install.ps1 | iex
+        Write-ColorOutput "✓ UV installed" "Green"
+    }
+
+    & $UV --version
+}
+
 function Install-Project {
-    Write-ColorOutput "Starting installation..." "Green"
+    Write-ColorOutput "Starting installation with UV..." "Green"
+    Install-UV
     Create-Venv
     Install-Deps
     Install-Package
@@ -98,26 +117,27 @@ function Install-Project {
 }
 
 function Create-Venv {
-    Write-ColorOutput "Creating virtual environment..." "Blue"
-    if (-not (Test-Path $VENV)) {
-        & $PYTHON -m venv $VENV
-        Write-ColorOutput "✓ Virtual environment created" "Green"
-    } else {
-        Write-ColorOutput "⚠ Virtual environment already exists" "Yellow"
-    }
+    Write-ColorOutput "Creating virtual environment with UV..." "Blue"
+    & $UV venv $VENV
+    Write-ColorOutput "✓ Virtual environment created" "Green"
 }
 
 function Install-Deps {
-    Write-ColorOutput "Installing dependencies..." "Blue"
-    & $VENV_PIP install --upgrade pip setuptools wheel
-    & $VENV_PIP install -r requirements.txt
+    Write-ColorOutput "Installing dependencies with UV (ultra-fast!)..." "Blue"
+    & $UV pip install -r requirements.txt
     Write-ColorOutput "✓ Dependencies installed" "Green"
 }
 
 function Install-Package {
-    Write-ColorOutput "Installing package..." "Blue"
-    & $VENV_PIP install -e .
+    Write-ColorOutput "Installing package with UV..." "Blue"
+    & $UV pip install -e .
     Write-ColorOutput "✓ Package installed" "Green"
+}
+
+function Sync-Deps {
+    Write-ColorOutput "Syncing dependencies with UV..." "Blue"
+    & $UV pip sync requirements.txt
+    Write-ColorOutput "✓ Dependencies synced" "Green"
 }
 
 function Setup-Config {
@@ -148,41 +168,41 @@ function Setup-Config {
 
 function Run-Discovery {
     Write-ColorOutput "Starting network discovery..." "Blue"
-    & $NETWORK_DISCOVERY discover run
+    Invoke-Expression "$UV_RUN network-discovery discover run"
     Write-ColorOutput "✓ Discovery complete" "Green"
 }
 
 function Run-DiscoveryVerbose {
     Write-ColorOutput "Starting verbose network discovery..." "Blue"
     $env:LOG_LEVEL = "DEBUG"
-    & $NETWORK_DISCOVERY discover run
+    Invoke-Expression "$UV_RUN network-discovery discover run"
     Write-ColorOutput "✓ Discovery complete" "Green"
 }
 
 function Run-DiscoveryShallow {
     Write-ColorOutput "Starting shallow discovery (max depth 3)..." "Blue"
-    & $NETWORK_DISCOVERY discover run --max-depth 3
+    Invoke-Expression "$UV_RUN network-discovery discover run --max-depth 3"
     Write-ColorOutput "✓ Discovery complete" "Green"
 }
 
 function Show-Status {
-    & $NETWORK_DISCOVERY discover status
+    Invoke-Expression "$UV_RUN network-discovery discover status"
 }
 
 function List-Devices {
-    & $NETWORK_DISCOVERY list-devices
+    Invoke-Expression "$UV_RUN network-discovery list-devices"
 }
 
 function List-Switches {
-    & $NETWORK_DISCOVERY list-devices --type switch
+    Invoke-Expression "$UV_RUN network-discovery list-devices --type switch"
 }
 
 function List-Connections {
-    & $NETWORK_DISCOVERY list-connections
+    Invoke-Expression "$UV_RUN network-discovery list-connections"
 }
 
 function Show-Stats {
-    & $NETWORK_DISCOVERY stats
+    Invoke-Expression "$UV_RUN network-discovery stats"
 }
 
 function Search-MAC {
@@ -198,7 +218,7 @@ function Search-MAC {
         }
     }
 
-    & $NETWORK_DISCOVERY search mac $MAC
+    Invoke-Expression "$UV_RUN network-discovery search mac $MAC"
 }
 
 function Search-Device {
@@ -214,18 +234,18 @@ function Search-Device {
         }
     }
 
-    & $NETWORK_DISCOVERY search device $Device
+    Invoke-Expression "$UV_RUN network-discovery search device $Device"
 }
 
 function Export-JSON {
     Write-ColorOutput "Exporting topology to topology.json..." "Blue"
-    & $NETWORK_DISCOVERY export --format json --output topology.json
+    Invoke-Expression "$UV_RUN network-discovery export --format json --output topology.json"
     Write-ColorOutput "✓ Exported to topology.json" "Green"
 }
 
 function Export-GraphML {
     Write-ColorOutput "Exporting topology to topology.graphml..." "Blue"
-    & $NETWORK_DISCOVERY export --format graphml --output topology.graphml
+    Invoke-Expression "$UV_RUN network-discovery export --format graphml --output topology.graphml"
     Write-ColorOutput "✓ Exported to topology.graphml" "Green"
 }
 
@@ -240,23 +260,23 @@ function Start-Server {
     Write-ColorOutput "API: http://localhost:5000" "Green"
     Write-ColorOutput "Dashboard: Open web\index.html in your browser" "Green"
     Write-ColorOutput "Press Ctrl+C to stop" "Yellow"
-    & $NETWORK_DISCOVERY serve
+    Invoke-Expression "$UV_RUN network-discovery serve"
 }
 
 function Start-ServerDebug {
     Write-ColorOutput "Starting web dashboard in debug mode..." "Blue"
-    & $NETWORK_DISCOVERY serve --debug
+    Invoke-Expression "$UV_RUN network-discovery serve --debug"
 }
 
 function Start-ServerPublic {
     Write-ColorOutput "Starting web dashboard on 0.0.0.0:5000..." "Blue"
     Write-ColorOutput "Server will be accessible from your network" "Yellow"
-    & $NETWORK_DISCOVERY serve --host 0.0.0.0 --port 5000
+    Invoke-Expression "$UV_RUN network-discovery serve --host 0.0.0.0 --port 5000"
 }
 
 function Initialize-DB {
     Write-ColorOutput "Initializing database..." "Blue"
-    & $VENV_PYTHON -c "from src.database.schema import create_database; from src.utils.config import get_database_url; create_database(get_database_url())"
+    Invoke-Expression "$UV_RUN python -c `"from src.database.schema import create_database; from src.utils.config import get_database_url; create_database(get_database_url())`""
     Write-ColorOutput "✓ Database initialized" "Green"
 }
 
@@ -281,22 +301,22 @@ function Clean-DB {
 
 function Open-Shell {
     Write-ColorOutput "Opening Python shell..." "Blue"
-    & $VENV_PYTHON -i -c "from src.database.schema import *; from src.database.repository import *; from src.core.discovery.engine import *; from src.utils.config import *; print('Project modules loaded')"
+    Invoke-Expression "$UV_RUN python -i -c `"from src.database.schema import *; from src.database.repository import *; from src.core.discovery.engine import *; from src.utils.config import *; print('Project modules loaded')`""
 }
 
 function Run-Tests {
     Write-ColorOutput "Running tests..." "Blue"
-    & "$VENV\Scripts\pytest" tests\ -v
+    Invoke-Expression "$UV_RUN pytest tests\ -v"
 }
 
 function Run-Lint {
     Write-ColorOutput "Running linter..." "Blue"
-    & "$VENV\Scripts\flake8" src\ --max-line-length=100 --ignore=E501,W503
+    Invoke-Expression "$UV_RUN flake8 src\ --max-line-length=100 --ignore=E501,W503"
 }
 
 function Run-Format {
     Write-ColorOutput "Formatting code..." "Blue"
-    & "$VENV\Scripts\black" src\ --line-length=100
+    Invoke-Expression "$UV_RUN black src\ --line-length=100"
 }
 
 function Clean-Temp {
@@ -320,7 +340,15 @@ function Clean-All {
     Remove-Item -Path "topology.gexf" -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "logs\*.log" -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "network_discovery.db" -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "uv.lock" -Force -ErrorAction SilentlyContinue
     Write-ColorOutput "✓ Everything cleaned" "Green"
+}
+
+function Show-UVInfo {
+    Write-ColorOutput "UV Information:" "Blue"
+    & $UV --version
+    Write-Host ""
+    & $UV pip list
 }
 
 function Run-Quickstart {
@@ -332,11 +360,13 @@ function Run-Quickstart {
 # Main command dispatcher
 switch ($Command.ToLower()) {
     "help" { Show-Help }
+    "install-uv" { Install-UV }
     "install" { Install-Project }
     "setup" { Install-Project }
     "venv" { Create-Venv }
     "deps" { Install-Deps }
     "package" { Install-Package }
+    "sync" { Sync-Deps }
     "config" { Setup-Config }
     "discover" { Run-Discovery }
     "discover-verbose" { Run-DiscoveryVerbose }
@@ -363,6 +393,7 @@ switch ($Command.ToLower()) {
     "format" { Run-Format }
     "clean" { Clean-Temp }
     "clean-all" { Clean-All }
+    "uv-info" { Show-UVInfo }
     "quickstart" { Run-Quickstart }
     default {
         Write-ColorOutput "Unknown command: $Command" "Red"
