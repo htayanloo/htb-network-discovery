@@ -1,0 +1,70 @@
+# Network Discovery Configuration
+
+# Seed devices to start discovery from
+seed_devices:
+  - hostname: CORE-SW-01
+    ip: 192.168.1.1
+    device_type: cisco_ios
+    # Optional: specify credentials per device
+    # username: admin
+    # password: ""  # Use environment variable instead
+
+  - hostname: CORE-SW-02
+    ip: 192.168.1.2
+    device_type: cisco_ios
+
+# Default credentials (can be overridden per device)
+credentials:
+  username: admin
+  # Password should be provided via environment variable: SSH_PASSWORD
+  # Or use SSH keys for passwordless authentication
+  use_keys: false
+  key_file: ~/.ssh/id_rsa
+
+# Discovery options
+discovery_options:
+  # Recursively discover neighbors
+  recursive: true
+
+  # Maximum recursion depth (prevents infinite loops)
+  max_depth: 10
+
+  # SSH connection timeout (seconds)
+  timeout: 30
+
+  # Banner timeout (seconds)
+  banner_timeout: 15
+
+  # Collect MAC address tables
+  collect_mac_tables: true
+
+  # Collect ARP tables
+  collect_arp_tables: false
+
+  # Collect interface statistics
+  collect_interface_stats: true
+
+  # Discovery protocol preference
+  protocols:
+    - cdp     # Cisco Discovery Protocol
+    - lldp    # Link Layer Discovery Protocol
+
+# Device filters
+filters:
+  # Skip devices matching these patterns
+  exclude_hostnames:
+    - "*-AP-*"      # Skip access points
+    - "*-PHONE-*"   # Skip IP phones
+
+  # Only discover these device types
+  # include_types:
+  #   - switch
+  #   - router
+
+# Parallel processing
+parallel:
+  # Number of concurrent SSH connections
+  max_workers: 5
+
+  # Queue size for discovered devices
+  queue_size: 100

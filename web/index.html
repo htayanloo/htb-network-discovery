@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Discovery Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Network Discovery Dashboard</h1>
+            <div class="header-stats">
+                <div class="stat">
+                    <span class="stat-label">Devices:</span>
+                    <span id="device-count" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Connections:</span>
+                    <span id="connection-count" class="stat-value">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="search-panel">
+                    <h3>Search</h3>
+                    <div class="search-group">
+                        <label for="mac-search">MAC Address:</label>
+                        <input type="text" id="mac-search" placeholder="aa:bb:cc:dd:ee:ff">
+                        <button onclick="searchMAC()">Search</button>
+                    </div>
+                    <div class="search-group">
+                        <label for="device-search">Device:</label>
+                        <input type="text" id="device-search" placeholder="hostname or IP">
+                        <button onclick="searchDevice()">Search</button>
+                    </div>
+                    <div id="search-results"></div>
+                </div>
+
+                <div class="device-panel" id="device-panel" style="display: none;">
+                    <h3>Device Details</h3>
+                    <div id="device-details"></div>
+                </div>
+
+                <div class="legend-panel">
+                    <h3>Legend</h3>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #3498db;"></div>
+                        <span>Switch</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e74c3c;"></div>
+                        <span>Router</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #95a5a6;"></div>
+                        <span>Unknown</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="topology-container">
+                <div class="topology-controls">
+                    <button onclick="fitGraph()">Fit</button>
+                    <button onclick="refreshTopology()">Refresh</button>
+                    <button onclick="exportTopology()">Export JSON</button>
+                    <select id="layout-select" onchange="changeLayout()">
+                        <option value="cose">Force Directed</option>
+                        <option value="circle">Circle</option>
+                        <option value="grid">Grid</option>
+                        <option value="breadthfirst">Hierarchical</option>
+                    </select>
+                </div>
+                <div id="topology" class="topology-view"></div>
+                <div id="loading" class="loading">Loading topology...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

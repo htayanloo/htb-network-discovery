@@ -1,0 +1,34 @@
+# SSH and Network
+netmiko>=4.3.0
+textfsm>=1.1.3
+paramiko>=3.3.0
+
+# Graph processing
+networkx>=3.1
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# CLI
+typer[all]>=0.9.0
+rich>=13.0.0
+
+# Data processing
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Utilities
+pydantic>=2.0.0
+cryptography>=41.0.0
+
+# Development
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0
+flake8>=6.1.0
+mypy>=1.5.0
